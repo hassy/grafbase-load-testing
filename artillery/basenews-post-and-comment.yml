@@ -21,6 +21,9 @@ config:
         # Calculate Apdex score automatically
         apdex: {}
         ensure: {}
+      ensure:
+        conditions:
+          - expression: "vusers.failed == 0"
       phases:
         - duration: 30
           arrivalRate: 1
@@ -41,7 +44,7 @@ scenarios:
   # Get posts
   #
   - name: get_posts
-    weight: 80
+    weight: 95
     flow:
       - post:
           url: "/graphql"
@@ -76,7 +79,7 @@ scenarios:
   # and read that post again
   #
   - name: create_post
-    weight: 20
+    weight: 5
     flow:
       - post:
           url: "/graphql"
