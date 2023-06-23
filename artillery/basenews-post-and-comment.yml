@@ -1,0 +1,137 @@
+config:
+  target: http://127.0.0.1:4000
+  defaults:
+    headers:
+      x-api-key: "{{ $processEnvironment.GRAFBASE_API_KEY }}"
+  environments:
+    local:
+      # Local dev server started with "npx grafbase dev"
+      # Useful for writing & debugging the tests themselves
+      target: http://127.0.0.1:4000
+    prod:
+      # This is our production deployment, using the free plan
+      target: https://grafbase-load-testing-main-hassy.grafbase.app
+      plugins:
+        # Provide a breakdown of latency per GraphQL operation
+        metrics-by-endpoint: {}
+        # Allow us to set GraphQL-specific checks for errors as we
+        # can't rely on status codes
+        expect:
+          outputFormat: prettyError
+        # Calculate Apdex score automatically
+        apdex: {}
+        ensure: {}
+      phases:
+        - duration: 30
+          arrivalRate: 1
+          name: Gentle warm up phase
+        - duration: 60
+          arrivalRate: 1
+          rampTo: 5
+          name: Gentle ramp
+        - duration: 60
+          arrivalRate: 5
+          rampTo: 30
+          name: Sudden load spike
+# Note: with GraphQL can't rely on HTTP response codes to know whether
+# a request succeeded or not, so we're setting a JMESPath check on every
+# response in each scenario.
+scenarios:
+  #
+  # Get posts
+  #
+  - name: get_posts
+    weight: 80
+    flow:
+      - post:
+          url: "/graphql"
+          name: Get posts
+          expect:
+            - jmespath: "data != null"
+            - jmespath: "errors == null"
+          json:
+            query: |
+              query {
+                postCollection(first: 10) {
+                  edges {
+                    node {
+                      id
+                      title
+                      url
+                      comments(first: 10) {
+                        edges {
+                          node {
+                            id
+                            body
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+  #
+  # Create a new post, post a new comment to it,
+  # and read that post again
+  #
+  - name: create_post
+    weight: 20
+    flow:
+      - post:
+          url: "/graphql"
+          name: createPost
+          json:
+            query: |
+              mutation {
+                postCreate(input: { title: "Grafbase ${{ $randomString(10) }}", url: "https://grafbase.com/{{ $randomString(10) }}" }) {
+                  post {
+                    id
+                  }
+                }
+              }
+          capture:
+            - json: $.data.postCreate.post.id
+              as: postId
+          expect:
+            - jmespath: "data != null"
+            - jmespath: "errors == null"
+      - post:
+          url: "/graphql"
+          name: postComment
+          json:
+            query: |
+
+                mutation {
+                  commentCreate(
+                    input: {
+                      body: "I love GraphQL!"
+                      post: { link: "{{ postId }}" }
+                    }
+                    ) {
+                     comment {
+                       body
+                         post {
+                         title
+                      }
+                    }
+                  }
+                }
+
+          expect:
+            - jmespath: "data != null"
+            - jmespath: "errors == null"
+      - post:
+          url: "/graphql"
+          name: getPost
+          json:
+            query: |
+              query {
+                post(by: { id: "{{ postId }}" }) {
+                    title
+                    url
+                  }
+                }
+          expect:
+            - jmespath: "data != null"
+            - jmespath: "errors == null"
