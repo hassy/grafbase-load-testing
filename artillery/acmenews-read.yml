@@ -1,8 +1,5 @@
 config:
   target: http://127.0.0.1:4000
-  defaults:
-    headers:
-      x-api-key: "{{ $env.GRAFBASE_API_KEY }}"
   environments:
     local:
       # Local dev server started with "npx grafbase dev"
@@ -45,32 +42,37 @@ scenarios:
   # Get posts
   #
   - name: get_posts
-    # weight: 99
     flow:
-      - post:
-          url: "/graphql"
-          name: Get posts
-          expect:
-            - jmespath: "data != null"
-            - jmespath: "errors == null"
-          json:
-            query: |
-              query {
-                postCollection(first: 10) {
-                  edges {
-                    node {
-                      id
-                      title
-                      url
-                      comments(first: 10) {
-                        edges {
-                          node {
-                            id
-                            body
+      - loop:
+        - post:
+            url: "/graphql"
+            name: Get posts
+            headers:
+              x-api-key: "{{ $env.GRAFBASE_API_KEY }}"
+            expect:
+              - jmespath: "data != null"
+              - jmespath: "errors == null"
+            json:
+              operationName: PostCollection
+              variables: {}
+              query: |
+                query PostCollection {
+                  postCollection(first: 10) {
+                    edges {
+                      node {
+                        id
+                        title
+                        url
+                        comments(first: 10) {
+                          edges {
+                            node {
+                              id
+                              body
+                            }
                           }
                         }
                       }
                     }
                   }
                 }
-              }
+        count: 5
