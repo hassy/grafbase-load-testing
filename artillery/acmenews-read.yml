@@ -22,6 +22,8 @@ config:
         conditions:
           - expression: "vusers.failed < (vusers.created * 0.01)"
             description: "Allow no more than 1% of all VUs to fail"
+          - expression: "plugins.expect.failed < (http.requests * 0.01)"
+            description: "Allow no more than 1% of all requests to fail"
       phases:
         - duration: 180
           arrivalRate: 10
