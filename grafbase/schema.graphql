@@ -10,9 +10,9 @@
 
 # Define Data Models
 # https://grafbase.com/docs/database
-type Post @model @search {
+type Post @model @search @cache(maxAge: 60, staleWhileRevalidate: 60) {
   title: String!
-  url: URL
+  url: URL!
   slug: String
   content: String
   publishedAt: DateTime
@@ -22,24 +22,16 @@ type Post @model @search {
   author: User
 }
 
-type Comment @model @search {
+type Comment @model @search @cache(maxAge: 60, staleWhileRevalidate: 60) {
   post: Post!
   body: String!
   likes: Int @default(value: 0)
   author: User
 }
 
-type User @model {
+type User @model @cache(maxAge: 60, staleWhileRevalidate: 60) {
   name: String!
   email: Email
   posts: [Post]
   comments: [Comment]
-
-  # Extend models with resolvers
-  # https://grafbase.com/docs/edge-gateway/resolvers
-  # gravatar: URL @resolver(name: "user/gravatar")
 }
-
-# Start your backend
-# https://grafbase.com/docs/cli
-# npx grafbase dev
